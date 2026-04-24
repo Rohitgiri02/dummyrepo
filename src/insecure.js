@@ -1,6 +1,6 @@
 // Intentionally insecure sample file for testing analyzer behavior.
 // Do not use this code in production.
-
+//i am insecure
 function runDynamic(userInput) {
   // eval usage should be flagged.
   return eval(userInput);
