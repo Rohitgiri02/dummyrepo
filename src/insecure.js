@@ -13,7 +13,16 @@ function buildQuery(userId) {
 }
 
 const hardcodedSecret = "sk_test_very_insecure_hardcoded_value";
+function runDynamic(userInput) {
+  // eval usage should be flagged.
+  return eval(userInput);
+}
 
+function buildQuery(userId) {
+  // SQL concatenation should be flagged.
+  const query = "SELECT * FROM users WHERE id = '" + userId + "'";
+  return query;
+}
 module.exports = {
   runDynamic,
   buildQuery,
