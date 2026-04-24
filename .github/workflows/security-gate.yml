@@ -23,18 +23,11 @@ jobs:
         id: analysis
         shell: bash
         env:
-          BACKEND_URL: ${{ secrets.SECURITY_ANALYZER_BACKEND_URL }}
-          CI_WEBHOOK_TOKEN: ${{ secrets.CI_WEBHOOK_TOKEN }}
           REPOSITORY: ${{ github.repository }}
           BRANCH: ${{ github.ref_name }}
           COMMIT_SHA: ${{ github.sha }}
         run: |
-          if [ -z "$BACKEND_URL" ] || [ -z "$CI_WEBHOOK_TOKEN" ]; then
-            echo "Missing SECURITY_ANALYZER_BACKEND_URL or CI_WEBHOOK_TOKEN"
-            exit 1
-          fi
-
-          response=$(curl -sS -X POST "$BACKEND_URL/webhook/analyze-ci"             -H "Content-Type: application/json"             -H "x-ci-token: $CI_WEBHOOK_TOKEN"             -d "{"repo":"$REPOSITORY","branch":"$BRANCH","commitSha":"$COMMIT_SHA"}")
+          response=$(curl -sS -X POST "https://ai-security-r4sj.onrender.com/webhook/analyze-ci"             -H "Content-Type: application/json"             -d "{"repo":"$REPOSITORY","branch":"$BRANCH","commitSha":"$COMMIT_SHA"}")
 
           echo "$response" > security-analysis.json
 
