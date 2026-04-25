@@ -1,0 +1,59 @@
+name: Security Gate
+
+on:
+  push:
+    branches:
+      - '**'
+  pull_request:
+    branches:
+      - '**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Request security analysis
+        id: analysis
+        shell: bash
+        env:
+          REPOSITORY: ${{ github.repository }}
+          BRANCH: ${{ github.ref_name }}
+          COMMIT_SHA: ${{ github.sha }}
+        run: |
+          payload=$(printf '{"repo":"%s","branch":"%s","commitSha":"%s"}' "$REPOSITORY" "$BRANCH" "$COMMIT_SHA")
+
+          http_code=$(curl -sS -o security-analysis.json -w "%{http_code}" -X POST "https://ai-security-r4sj.onrender.com/webhook/analyze-ci"             -H "Content-Type: application/json"             --data "$payload")
+
+          echo "Analyzer HTTP status: $http_code"
+          cat security-analysis.json
+
+          if [ "$http_code" -lt 200 ] || [ "$http_code" -ge 300 ]; then
+            echo "Analyzer request failed with status $http_code"
+            exit 1
+          fi
+
+          risk=$(node -e "const fs=require('fs'); const data=JSON.parse(fs.readFileSync('security-analysis.json', 'utf8')); if (data.error) { console.error(data.error); process.exit(1); } if (typeof data.risk !== 'number' || Number.isNaN(data.risk)) { console.error('Analyzer did not return numeric risk'); process.exit(1); } process.stdout.write(String(Math.round(data.risk)));")
+          decision=$(node -e "const fs=require('fs'); const data=JSON.parse(fs.readFileSync('security-analysis.json', 'utf8')); process.stdout.write(String(data.decision ?? 'allow'));")
+
+          echo "risk=$risk" >> "$GITHUB_OUTPUT"
+          echo "decision=$decision" >> "$GITHUB_OUTPUT"
+
+      - name: Block deployment when risk is above threshold
+        shell: bash
+        run: |
+          risk="${{ steps.analysis.outputs.risk }}"
+          if [ -z "$risk" ]; then
+            risk=0
+          fi
+
+          if [ "$risk" -gt 50 ]; then
+            echo "Security risk is $risk, which is above the allowed threshold of 50."
+            exit 1
+          fi
